@@ -1,10 +1,12 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Pressable } from 'react-native';
 import { Theme } from '@/constants/Theme';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 export default function HomeFeedScreen() {
+  const [showSharePopover, setShowSharePopover] = useState(false);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -50,9 +52,33 @@ export default function HomeFeedScreen() {
               <Text style={styles.actionText}>0 Comments</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.shareItem}>
-              <Ionicons name="share-social" size={20} color="#4B5563" />
-            </TouchableOpacity>
+            <View style={styles.shareContainer}>
+              <TouchableOpacity 
+                style={styles.shareItem}
+                onPress={() => setShowSharePopover(!showSharePopover)}
+              >
+                <Ionicons name="share-social" size={20} color="#4B5563" />
+              </TouchableOpacity>
+
+              {/* Share Popover precisely replicating mockup 4 */}
+              {showSharePopover && (
+                <Animated.View entering={FadeIn.duration(200)} style={styles.sharePopover}>
+                  <TouchableOpacity 
+                    style={styles.popoverItem}
+                    onPress={() => setShowSharePopover(false)}
+                  >
+                    <Text style={styles.popoverText}>WhatsApp</Text>
+                  </TouchableOpacity>
+                  <View style={styles.popoverDivider} />
+                  <TouchableOpacity 
+                    style={styles.popoverItem}
+                    onPress={() => setShowSharePopover(false)}
+                  >
+                    <Text style={styles.popoverText}>Twitter (X)</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              )}
+            </View>
           </View>
         </Animated.View>
       </ScrollView>
@@ -99,6 +125,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    zIndex: 1,
   },
   postHeader: {
     flexDirection: 'row',
@@ -148,6 +175,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    position: 'relative',
   },
   actionItem: {
     flexDirection: 'row',
@@ -164,8 +192,42 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontWeight: '600',
   },
+  shareContainer: {
+    position: 'relative',
+    zIndex: 10,
+  },
   shareItem: {
     padding: 4,
+  },
+  sharePopover: {
+    position: 'absolute',
+    right: 0,
+    bottom: 32,
+    backgroundColor: '#EAEAF2', // light lavender-gray background matching popover in mockup 4
+    borderRadius: 12,
+    paddingVertical: 8,
+    width: 140,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    zIndex: 20,
+  },
+  popoverItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  popoverText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  popoverDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
   },
   fab: {
     position: 'absolute',
@@ -174,7 +236,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#DCE4F9', // Light violet/blue FAB background
+    backgroundColor: '#DCE4F9',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
