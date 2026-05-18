@@ -1,29 +1,46 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
 import { Theme } from '@/constants/Theme';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 export default function JobsScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Jobs</Text>
-          <Text style={styles.subtitle}>VERIFIED WEB3 GIGS</Text>
-        </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Available Jobs</Text>
+        <TouchableOpacity style={styles.filterButton}>
+          <Ionicons name="options-outline" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+      </View>
 
-        <Animated.View entering={FadeInUp.delay(100)} style={styles.jobCard}>
-          <Text style={styles.jobTitle}>Smart Contract Auditor</Text>
-          <Text style={styles.jobCompany}>Solana Labs</Text>
-          <Text style={styles.jobBudget}>$8,000 - $12,000 / month</Text>
-        </Animated.View>
+      {/* Search Input */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by job title or keyword..."
+          placeholderTextColor="#9CA3AF"
+        />
+      </View>
 
-        <Animated.View entering={FadeInUp.delay(200)} style={styles.jobCard}>
-          <Text style={styles.jobTitle}>React Native Developer</Text>
-          <Text style={styles.jobCompany}>Skillchain Escrow</Text>
-          <Text style={styles.jobBudget}>$6,500 / month</Text>
-        </Animated.View>
-      </ScrollView>
+      {/* Empty State */}
+      <Animated.View entering={FadeIn.duration(600)} style={styles.emptyState}>
+        <Ionicons name="briefcase" size={80} color="#9CA3AF" style={styles.briefcaseIcon} />
+        <Text style={styles.emptyText}>No jobs found</Text>
+      </Animated.View>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => router.push('/post-job')}
+      >
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -33,48 +50,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
-  scrollContent: {
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 64,
-    paddingBottom: 100,
-  },
-  header: {
-    marginBottom: 24,
+    paddingBottom: 16,
   },
   title: {
-    fontSize: 40,
+    fontSize: 34,
     fontWeight: '800',
     color: '#111827',
     letterSpacing: -1,
   },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#1E293B',
-    letterSpacing: 1.5,
-    marginTop: 4,
+  filterButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB', // light gray background for slider button
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  jobCard: {
-    backgroundColor: '#E5E7EB',
-    borderRadius: 20,
-    padding: 20,
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EAEAF2', // light gray rounded input matching mockup
+    marginHorizontal: 24,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#111827',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingBottom: 120,
+  },
+  briefcaseIcon: {
+    opacity: 0.6,
     marginBottom: 16,
   },
-  jobTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#9CA3AF',
   },
-  jobCompany: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#1E3A8A',
-    marginTop: 4,
-  },
-  jobBudget: {
-    fontSize: 14,
-    color: '#4B5563',
-    marginTop: 8,
-    fontWeight: '700',
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#405B8F', // Blue FAB matching mockup 2 precisely
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
 });

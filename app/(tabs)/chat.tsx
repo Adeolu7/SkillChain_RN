@@ -1,25 +1,34 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { Theme } from '@/constants/Theme';
+import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 export default function ChatScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Chat</Text>
-          <Text style={styles.subtitle}>SECURE WEB3 MESSAGES</Text>
+          <Text style={styles.title}>Messages</Text>
         </View>
 
-        <Animated.View entering={FadeInUp.delay(100)} style={styles.chatItem}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>KP</Text>
-          </View>
-          <View style={styles.chatDetails}>
-            <Text style={styles.chatName}>Katy Pery</Text>
-            <Text style={styles.chatPreview}>Let's discuss the security audit details.</Text>
-          </View>
+        {/* Chat List Item */}
+        <Animated.View entering={FadeInUp.delay(100)}>
+          <TouchableOpacity 
+            style={styles.chatItem}
+            onPress={() => router.push('/chat-detail')}
+          >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>S</Text>
+            </View>
+            <View style={styles.chatDetails}>
+              <Text style={styles.chatName}>SirG47</Text>
+              <Text style={styles.chatPreview}>Tap to view conversation</Text>
+            </View>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     </View>
@@ -37,45 +46,36 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
   title: {
-    fontSize: 40,
+    fontSize: 34,
     fontWeight: '800',
     color: '#111827',
     letterSpacing: -1,
   },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#1E293B',
-    letterSpacing: 1.5,
-    marginTop: 4,
-  },
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
+    paddingVertical: 12,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: '#DCE4F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '700',
     color: '#3B82F6',
   },
   chatDetails: {
     flex: 1,
     marginLeft: 16,
+    justifyContent: 'center',
   },
   chatName: {
     fontSize: 18,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   chatPreview: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#4B5563',
     marginTop: 2,
     fontWeight: '500',

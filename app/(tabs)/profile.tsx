@@ -1,10 +1,11 @@
 import React from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
 import { Theme } from '@/constants/Theme';
-import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const skills = ['APPLICATION SECURITY', 'ENDPOINT SECURITY', 'NETWORK SECURITY'];
 
   return (
@@ -32,21 +33,21 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Bio Section */}
-        <Animated.View entering={FadeInUp.delay(200)} style={styles.section}>
+        <Animated.View entering={FadeInUp.delay(150)} style={styles.section}>
           <Text style={styles.sectionTitle}>Bio</Text>
           <Text style={styles.bioText}>
-            Web3 Security Researcher and Forensic Auditor. Specialized in smart contract security auditing, threat modeling, and mobile-native network defense on Solana.
+            SkillChain combines the best of LinkedIn and Upwork — built mobile-native for Solana.
           </Text>
         </Animated.View>
 
         {/* Hourly Rate Section */}
-        <Animated.View entering={FadeInUp.delay(300)} style={styles.section}>
+        <Animated.View entering={FadeInUp.delay(200)} style={styles.section}>
           <Text style={styles.rateLabel}>Hourly Rate</Text>
           <Text style={styles.rateValue}>$30.0 / hr</Text>
         </Animated.View>
 
         {/* Skills Section */}
-        <Animated.View entering={FadeInUp.delay(400)} style={styles.section}>
+        <Animated.View entering={FadeInUp.delay(250)} style={styles.section}>
           <Text style={styles.sectionTitle}>Skills</Text>
           <View style={styles.skillsRow}>
             {skills.map((skill) => (
@@ -58,7 +59,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Work Experience Section */}
-        <Animated.View entering={FadeInUp.delay(500)} style={styles.section}>
+        <Animated.View entering={FadeInUp.delay(300)} style={styles.section}>
           <Text style={styles.sectionTitle}>Work Experience</Text>
           <View style={styles.experienceCard}>
             <Text style={styles.experienceRole}>Forensic Expert</Text>
@@ -68,13 +69,31 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Education Section */}
-        <Animated.View entering={FadeInUp.delay(600)} style={styles.section}>
+        <Animated.View entering={FadeInUp.delay(350)} style={styles.section}>
           <Text style={styles.sectionTitle}>Education</Text>
           <View style={styles.experienceCard}>
-            <Text style={styles.experienceRole}>B.Sc. Cyber Security</Text>
-            <Text style={styles.experienceCompany}>Gateway ICT Polytechnic</Text>
-            <Text style={styles.experienceDates}>Graduated 2024</Text>
+            <Text style={styles.experienceRole}>Harvard</Text>
+            <Text style={styles.experienceCompany}>Msc Computer Science</Text>
           </View>
+        </Animated.View>
+
+        {/* Certifications Section */}
+        <Animated.View entering={FadeInUp.delay(400)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Certifications</Text>
+          <View style={styles.experienceCard}>
+            <Text style={styles.experienceRole}>OSCP</Text>
+            <Text style={styles.experienceCompany}>OffSec</Text>
+          </View>
+        </Animated.View>
+
+        {/* Message Button from screenshot */}
+        <Animated.View entering={FadeInUp.delay(450)} style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={styles.messageButton}
+            onPress={() => router.push('/chat-detail')}
+          >
+            <Text style={styles.messageButtonText}>Message SirG47</Text>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     </View>
@@ -210,5 +229,21 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     marginTop: 4,
     fontWeight: '500',
+  },
+  buttonContainer: {
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  messageButton: {
+    backgroundColor: '#405B8F', // Steel blue color matching mockup 1 bottom button precisely
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
