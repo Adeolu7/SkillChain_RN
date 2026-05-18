@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '@/constants/Theme';
 import { useRouter } from 'expo-router';
 import { StyledInput } from '@/components/StyledInput';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -12,8 +12,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    // Logic for login will go here
-    console.log('Login pressed');
+    // Navigate straight to tabs home/feed
     router.replace('/(tabs)');
   };
 
@@ -22,62 +21,54 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <LinearGradient
-        colors={[Theme.colors.background, '#1E293B']}
-        style={StyleSheet.absoluteFill}
-      />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Animated.View entering={FadeIn.duration(800)} style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to access your skills</Text>
-        </Animated.View>
+      <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
+        <Animated.View entering={FadeInUp.duration(600)} style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Login</Text>
+            <Text style={styles.subtitle}>Welcome back to SkillChain</Text>
+          </View>
 
-        <View style={styles.form}>
-          <StyledInput
-            label="Email Address"
-            placeholder="example@skillchain.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <StyledInput
-            label="Password"
-            placeholder="••••••••"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.form}>
+            <StyledInput
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <StyledInput
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.loginButton}
-            onPress={handleLogin}
-          >
-            <LinearGradient
-              colors={[Theme.colors.primary, Theme.colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handleLogin}
             >
-              <Text style={styles.buttonText}>Log In</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <Text style={styles.submitButtonText}>Login</Text>
+            </TouchableOpacity>
+          </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
-            <Text style={styles.linkText}>Sign Up</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.bottomSection}>
+            <TouchableOpacity 
+              style={styles.signupRedirect}
+              onPress={() => router.push('/(auth)/signup')}
+            >
+              <View style={styles.signupRedirectContainer}>
+                <Text style={styles.signupRedirectText}>
+                  Don't have an account? <Text style={styles.signupRedirectTextBold}>Sign Up</Text>
+                </Text>
+                <Ionicons name="chevron-forward" size={16} color={Theme.colors.text} style={styles.chevron} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -86,77 +77,83 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: Theme.spacing.xl,
-    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 100,
+    paddingBottom: 40,
+    justifyContent: 'space-between',
   },
   header: {
-    marginBottom: Theme.spacing.xl,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    marginBottom: Theme.spacing.md,
-  },
-  backButtonText: {
-    color: Theme.colors.text,
-    fontSize: 24,
+    marginBottom: 40,
   },
   title: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '800',
     color: Theme.colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: Theme.colors.textMuted,
-    marginTop: Theme.spacing.xs,
+    marginTop: 8,
+    fontWeight: '500',
   },
   form: {
-    width: '100%',
-    gap: Theme.spacing.sm,
+    flex: 1,
+    justifyContent: 'flex-start',
+    gap: 4,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: Theme.spacing.lg,
+    paddingVertical: 8,
+    marginBottom: 20,
   },
   forgotPasswordText: {
-    color: Theme.colors.primary,
+    color: '#111827',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  loginButton: {
+  submitButton: {
     width: '100%',
-    height: 56,
-    borderRadius: Theme.borderRadius.lg,
-    overflow: 'hidden',
-    marginTop: Theme.spacing.md,
-  },
-  buttonGradient: {
-    flex: 1,
+    backgroundColor: '#E5E7EB', // matching screenshots' clean button background
+    borderRadius: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  submitButtonText: {
+    color: '#4B5563', // dark text matching screenshot style
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  bottomSection: {
+    marginTop: 40,
     alignItems: 'center',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
+  signupRedirect: {
+    paddingVertical: 8,
   },
-  footer: {
+  signupRedirectContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: Theme.spacing.xl,
+    alignItems: 'center',
   },
-  footerText: {
+  signupRedirectText: {
     color: Theme.colors.textMuted,
     fontSize: 15,
+    fontWeight: '500',
   },
-  linkText: {
-    color: Theme.colors.primary,
-    fontSize: 15,
+  signupRedirectTextBold: {
+    color: Theme.colors.text,
     fontWeight: '700',
+  },
+  chevron: {
+    marginLeft: 6,
+    marginTop: 1,
   },
 });

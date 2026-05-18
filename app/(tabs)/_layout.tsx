@@ -1,7 +1,25 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { View, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme } from '@/constants/Theme';
+
+interface TabBarIconProps {
+  focused: boolean;
+  name: keyof typeof Ionicons.mappings | string;
+}
+
+function TabIcon({ focused, name }: TabBarIconProps) {
+  return (
+    <View style={focused ? styles.activePill : styles.inactiveIconContainer}>
+      <Ionicons
+        name={(focused ? name.replace('-outline', '') : name) as any}
+        size={22}
+        color={focused ? '#1F2937' : '#4B5563'}
+      />
+    </View>
+  );
+}
 
 export default function TabLayout() {
   return (
@@ -9,31 +27,56 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Theme.colors.surface,
-          borderTopColor: Theme.colors.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          backgroundColor: '#F3F4F6', // light gray bottom bar matching standard light themes
+          borderTopWidth: 0,
+          height: 80,
+          paddingBottom: 10,
+          paddingTop: 10,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        tabBarActiveTintColor: Theme.colors.primary,
-        tabBarInactiveTintColor: Theme.colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          marginTop: 4,
+        },
+        tabBarActiveTintColor: '#111827',
+        tabBarInactiveTintColor: '#4B5563',
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
+          title: 'Home',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} name="home-outline" />
           ),
         }}
       />
       <Tabs.Screen
-        name="skills"
+        name="discover"
         options={{
-          title: 'My Skills',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="medal-outline" size={size} color={color} />
+          title: 'Discover',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} name="search-outline" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="jobs"
+        options={{
+          title: 'Jobs',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} name="briefcase-outline" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Chat',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} name="chatbubble-outline" />
           ),
         }}
       />
@@ -41,11 +84,28 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} name="person-outline" />
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  activePill: {
+    width: 64,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Theme.colors.activeTabBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inactiveIconContainer: {
+    width: 64,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

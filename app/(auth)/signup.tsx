@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '@/constants/Theme';
 import { useRouter } from 'expo-router';
 import { StyledInput } from '@/components/StyledInput';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -13,8 +13,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
 
   const handleSignup = () => {
-    // Logic for signup will go here
-    console.log('Signup pressed');
+    // Navigate directly to standard tabs Dashboard
     router.replace('/(tabs)');
   };
 
@@ -23,72 +22,57 @@ export default function SignupScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <LinearGradient
-        colors={[Theme.colors.background, '#1E293B']}
-        style={StyleSheet.absoluteFill}
-      />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Animated.View entering={FadeIn.duration(800)} style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join the network of verified experts</Text>
-        </Animated.View>
-
-        <View style={styles.form}>
-          <StyledInput
-            label="Full Name"
-            placeholder="John Doe"
-            value={fullName}
-            onChangeText={setFullName}
-          />
-          <StyledInput
-            label="Email Address"
-            placeholder="example@skillchain.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <StyledInput
-            label="Password"
-            placeholder="Minimum 8 characters"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <View style={styles.termsContainer}>
-            <Text style={styles.termsText}>
-              By signing up, you agree to our{' '}
-              <Text style={styles.linkTextInline}>Terms of Service</Text> and{' '}
-              <Text style={styles.linkTextInline}>Privacy Policy</Text>
-            </Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} bounces={false}>
+        <Animated.View entering={FadeInUp.duration(600)} style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join the SkillChain network</Text>
           </View>
 
-          <TouchableOpacity 
-            style={styles.signupButton}
-            onPress={handleSignup}
-          >
-            <LinearGradient
-              colors={[Theme.colors.primary, Theme.colors.secondary]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.buttonText}>Sign Up</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.form}>
+            <StyledInput
+              placeholder="Full Name"
+              value={fullName}
+              onChangeText={setFullName}
+            />
+            <StyledInput
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <StyledInput
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.linkText}>Log In</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity style={styles.walletButton}>
+              <Ionicons name="wallet" size={20} color={Theme.colors.text} style={styles.walletIcon} />
+              <Text style={styles.walletButtonText}>Connect Solana Wallet</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.bottomSection}>
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handleSignup}
+            >
+              <Text style={styles.submitButtonText}>Complete Sign Up</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.loginRedirect}
+              onPress={() => router.push('/(auth)/login')}
+            >
+              <Text style={styles.loginRedirectText}>
+                Already have an account? <Text style={styles.loginRedirectTextBold}>Login</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -97,81 +81,85 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Theme.colors.background,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: Theme.spacing.xl,
-    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 80,
+    paddingBottom: 40,
+    justifyContent: 'space-between',
   },
   header: {
-    marginBottom: Theme.spacing.xl,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    marginBottom: Theme.spacing.md,
-  },
-  backButtonText: {
-    color: Theme.colors.text,
-    fontSize: 24,
+    marginBottom: 40,
   },
   title: {
-    fontSize: 32,
+    fontSize: 40,
     fontWeight: '800',
     color: Theme.colors.text,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: Theme.colors.textMuted,
-    marginTop: Theme.spacing.xs,
+    marginTop: 8,
+    fontWeight: '500',
   },
   form: {
-    width: '100%',
-    gap: Theme.spacing.sm,
+    flex: 1,
+    justifyContent: 'flex-start',
+    gap: 4,
   },
-  termsContainer: {
-    marginVertical: Theme.spacing.md,
-    paddingHorizontal: 4,
+  walletButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Theme.colors.surface,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    paddingVertical: 18,
+    marginTop: 12,
   },
-  termsText: {
-    color: Theme.colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
+  walletIcon: {
+    marginRight: 10,
   },
-  linkTextInline: {
-    color: Theme.colors.primary,
+  walletButtonText: {
+    color: Theme.colors.text,
+    fontSize: 15,
     fontWeight: '600',
   },
-  signupButton: {
+  bottomSection: {
+    marginTop: 40,
+    gap: 16,
+  },
+  submitButton: {
     width: '100%',
-    height: 56,
-    borderRadius: Theme.borderRadius.lg,
-    overflow: 'hidden',
-    marginTop: Theme.spacing.sm,
-  },
-  buttonGradient: {
-    flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#E5E7EB', // matching screenshots' clean button background
+    borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
+  submitButtonText: {
+    color: '#4B5563', // dark text matching screenshot style
+    fontSize: 16,
     fontWeight: '700',
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: Theme.spacing.xl,
+  loginRedirect: {
+    alignItems: 'center',
+    paddingVertical: 8,
   },
-  footerText: {
+  loginRedirectText: {
     color: Theme.colors.textMuted,
-    fontSize: 15,
+    fontSize: 14,
+    fontWeight: '500',
   },
-  linkText: {
-    color: Theme.colors.primary,
-    fontSize: 15,
+  loginRedirectTextBold: {
+    color: Theme.colors.text,
     fontWeight: '700',
   },
 });
