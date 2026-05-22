@@ -1,20 +1,50 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Theme } from '@/constants/Theme';
-import { useRouter } from 'expo-router';
-import { StyledInput } from '@/components/StyledInput';
-import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { supabase } from '@/constants/Supabase';
+import { Alert, ActivityIndicator } from 'react-native';
 
 export default function SignupScreen() {
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
-    // Navigate directly to standard tabs Dashboard
-    router.replace('/(tabs)');
+  const connectMockWallet = () => {
+    const chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    const mockAddr = '5YNZ' + Array.from({ length: 36 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    setWalletAddress(mockAddr);
+    Alert.alert('Solana Wallet Connected', `Mock address successfully connected:\n${mockAddr}`);
+  };
+
+  const handleSignup = async () => {
+    if (!email || !password || !fullName) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            solana_address: walletAddress || null,
+          }
+        }
+      });
+      
+      if (error) {
+        Alert.alert('Sign Up Error', error.message);
+      } else {
+        // Auth state changes will automatically route the user
+        Alert.alert('Success', 'Check your email for confirmation if required!');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,9 +79,25 @@ export default function SignupScreen() {
               secureTextEntry
             />
 
-            <TouchableOpacity style={styles.walletButton}>
-              <Ionicons name="wallet" size={20} color={Theme.colors.text} style={styles.walletIcon} />
-              <Text style={styles.walletButtonText}>Connect Solana Wallet</Text>
+            <TouchableOpacity 
+              style={[
+                styles.walletButton, 
+                walletAddress ? { borderColor: '#10B981', backgroundColor: '#ECFDF5' } : null
+              ]}
+              onPress={connectMockWallet}
+            >
+              <Ionicons 
+                name={walletAddress ? "checkmark-circle" : "wallet"} 
+                size={20} 
+                color={walletAddress ? '#10B981' : Theme.colors.text} 
+                style={styles.walletIcon} 
+              />
+              <Text style={[styles.walletButtonText, walletAddress ? { color: '#10B981' } : null]}>
+                {walletAddress 
+                  ? `Connected: ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+                  : "Connect Solana Wallet"
+                }
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -59,13 +105,19 @@ export default function SignupScreen() {
             <TouchableOpacity 
               style={styles.submitButton}
               onPress={handleSignup}
+              disabled={loading}
             >
-              <Text style={styles.submitButtonText}>Complete Sign Up</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#4B5563" />
+              ) : (
+                <Text style={styles.submitButtonText}>Complete Sign Up</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.loginRedirect}
               onPress={() => router.push('/(auth)/login')}
+              disabled={loading}
             >
               <Text style={styles.loginRedirectText}>
                 Already have an account? <Text style={styles.loginRedirectTextBold}>Login</Text>

@@ -1,19 +1,33 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Theme } from '@/constants/Theme';
-import { useRouter } from 'expo-router';
-import { StyledInput } from '@/components/StyledInput';
-import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { supabase } from '@/constants/Supabase';
+import { Alert, ActivityIndicator } from 'react-native';
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Navigate straight to tabs home/feed
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        Alert.alert('Login Error', error.message);
+      }
+      // Reactive routing in _layout will handle standard tabs transition automatically!
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'An unexpected error occurred.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,8 +64,13 @@ export default function LoginScreen() {
             <TouchableOpacity 
               style={styles.submitButton}
               onPress={handleLogin}
+              disabled={loading}
             >
-              <Text style={styles.submitButtonText}>Login</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#4B5563" />
+              ) : (
+                <Text style={styles.submitButtonText}>Login</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -59,6 +78,7 @@ export default function LoginScreen() {
             <TouchableOpacity 
               style={styles.signupRedirect}
               onPress={() => router.push('/(auth)/signup')}
+              disabled={loading}
             >
               <View style={styles.signupRedirectContainer}>
                 <Text style={styles.signupRedirectText}>
