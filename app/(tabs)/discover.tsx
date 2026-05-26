@@ -1,12 +1,77 @@
-import React from 'react';
-import { StyleSheet, Text, View, TextInput, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, TextInput, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Theme } from '@/constants/Theme';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { supabase } from '@/constants/Supabase';
+import { useRouter } from 'expo-router';
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  bio: string | null;
+  hourly_rate: number | null;
+  skills: string[];
+  avatar_url: string | null;
+}
 
 export default function DiscoverScreen() {
-  const categories = ['All', 'Kotlin', 'Solana', 'UI/UX'];
-  const activeCategory = 'All';
+  const router = useRouter();
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('All');
+
+  const categories = ['All', 'Solana', 'Security', 'UI/UX', 'Kotlin', 'React'];
+
+  useEffect(() => {
+    fetchProfiles();
+  }, []);
+
+  const fetchProfiles = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profile')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setProfiles(data || []);
+    } catch (e: any) {
+      console.error('Error fetching discover profiles:', e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCardPress = (profile: Profile) => {
+    // Navigate to profile page passing selected user ID
+    router.push({
+      pathname: '/(tabs)/profile',
+      params: { userId: profile.id }
+    });
+  };
+
+  // Filter profiles based on search and selected category chip
+  const filteredProfiles = profiles.filter(profile => {
+    const name = (profile.full_name || '').toLowerCase();
+    const bio = (profile.bio || '').toLowerCase();
+    const skillsString = (profile.skills || []).join(' ').toLowerCase();
+    const query = searchQuery.toLowerCase();
+
+    // Text search filter
+    const matchesSearch = name.includes(query) || bio.includes(query) || skillsString.includes(query);
+
+    // Category filter
+    const matchesCategory = activeCategory === 'All' || 
+      (profile.skills || []).some(skill => 
+        skill.toLowerCase().includes(activeCategory.toLowerCase())
+      );
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <View style={styles.container}>
@@ -23,7 +88,14 @@ export default function DiscoverScreen() {
           style={styles.searchInput}
           placeholder="Search skills, names or chains..."
           placeholderTextColor="#9CA3AF"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Horizontal Category Chips */}
@@ -35,6 +107,7 @@ export default function DiscoverScreen() {
               <TouchableOpacity
                 key={category}
                 style={[styles.chip, isActive ? styles.chipActive : styles.chipInactive]}
+                onPress={() => setActiveCategory(category)}
               >
                 <Text style={[styles.chipText, isActive ? styles.chipTextActive : styles.chipTextInactive]}>
                   {category}
@@ -46,54 +119,67 @@ export default function DiscoverScreen() {
       </View>
 
       {/* Talent Cards */}
-      <ScrollView contentContainerStyle={styles.cardsScroll} showsVerticalScrollIndicator={false}>
-        {/* Katy Pery Card */}
-        <Animated.View entering={FadeInUp.delay(100)} style={styles.talentCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.avatarWrapper}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>KP</Text>
-              </View>
-              <View style={styles.activeDot} />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.cardsScroll} showsVerticalScrollIndicator={false}>
+          {filteredProfiles.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={50} color="#9CA3AF" />
+              <Text style={styles.emptyText}>No talent found matching criteria.</Text>
             </View>
-            <View style={styles.talentInfo}>
-              <Text style={styles.talentName}>Katy Pery</Text>
-              <Text style={styles.talentRole}>WEB3 DEVELOPER</Text>
-            </View>
-            <View style={styles.rateContainer}>
-              <Text style={styles.rateText}>Neg.</Text>
-            </View>
-          </View>
-        </Animated.View>
+          ) : (
+            filteredProfiles.map((profile, index) => {
+              const skillsToShow = (profile.skills || []).slice(0, 3);
+              return (
+                <Animated.View 
+                  key={profile.id}
+                  entering={FadeInUp.delay(index * 50)} 
+                  style={styles.talentCard}
+                >
+                  <TouchableOpacity 
+                    style={styles.cardHeader}
+                    onPress={() => handleCardPress(profile)}
+                  >
+                    <View style={styles.avatarWrapper}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>
+                          {(profile.full_name || 'U').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.activeDot} />
+                    </View>
+                    
+                    <View style={styles.talentInfo}>
+                      <Text style={styles.talentName}>{profile.full_name || 'Anonymous User'}</Text>
+                      {skillsToShow.length > 0 ? (
+                        <View style={styles.skillsRow}>
+                          {skillsToShow.map((skill, sIdx) => (
+                            <View key={sIdx} style={styles.skillBadge}>
+                              <Text style={styles.skillBadgeText}>{skill.toUpperCase()}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.talentRole}>MEMBER</Text>
+                      )}
+                    </View>
 
-        {/* SirG47 Card */}
-        <Animated.View entering={FadeInUp.delay(200)} style={styles.talentCard}>
-          <View style={styles.cardHeader}>
-            <View style={styles.avatarWrapper}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>S</Text>
-              </View>
-              <View style={styles.activeDot} />
-            </View>
-            <View style={styles.talentInfo}>
-              <Text style={styles.talentName}>SirG47</Text>
-              {/* Skill tags list matching screenshot */}
-              <View style={styles.skillsRow}>
-                <View style={styles.skillBadge}>
-                  <Text style={styles.skillBadgeText}>APPLICATION SECURITY</Text>
-                </View>
-                <View style={styles.skillBadge}>
-                  <Text style={styles.skillBadgeText}>ENDPOINT SEC</Text>
-                </View>
-              </View>
-            </View>
-            <View style={styles.rateContainer}>
-              <Text style={styles.rateText}>$30</Text>
-              <Text style={styles.rateSubtext}>/ HOUR</Text>
-            </View>
-          </View>
-        </Animated.View>
-      </ScrollView>
+                    <View style={styles.rateContainer}>
+                      <Text style={styles.rateText}>
+                        {profile.hourly_rate ? `$${profile.hourly_rate}` : 'Neg.'}
+                      </Text>
+                      {profile.hourly_rate ? <Text style={styles.rateSubtext}>/ HOUR</Text> : null}
+                    </View>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -102,6 +188,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 80,
+    gap: 10,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#9CA3AF',
+    fontWeight: '600',
   },
   header: {
     paddingHorizontal: 24,
@@ -124,7 +225,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A', // Dark slate rounded search bar matching mockup
+    backgroundColor: '#0F172A',
     marginHorizontal: 24,
     borderRadius: 24,
     paddingHorizontal: 20,
@@ -157,10 +258,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chipActive: {
-    backgroundColor: '#0F172A', // Dark slate active tag matching mockup
+    backgroundColor: '#0F172A',
   },
   chipInactive: {
-    backgroundColor: '#E5E7EB', // Soft gray inactive tags matching mockup
+    backgroundColor: '#E5E7EB',
   },
   chipText: {
     fontSize: 14,
@@ -178,7 +279,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   talentCard: {
-    backgroundColor: '#E5E7EB', // light periwinkle/lavender gray background card from mockups
+    backgroundColor: '#E5E7EB',
     borderRadius: 20,
     padding: 20,
   },
@@ -209,7 +310,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#10B981', // green active dot
+    backgroundColor: '#10B981',
     borderWidth: 2,
     borderColor: '#E5E7EB',
   },
@@ -219,7 +320,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   talentName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     color: '#111827',
   },

@@ -1,13 +1,134 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  TextInput, 
+  ScrollView, 
+  TouchableOpacity, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ActivityIndicator, 
+  Alert 
+} from 'react-native';
 import { Theme } from '@/constants/Theme';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { supabase } from '@/constants/Supabase';
+
+interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+}
 
 export default function ChatDetailScreen() {
   const router = useRouter();
+  const { userId, name } = useLocalSearchParams();
   const [inputText, setInputText] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const setupChat = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setCurrentUserId(user.id);
+
+      // Fetch message history
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${user.id})`)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
+
+      // Subscribe to real-time message changes
+      const channel = supabase
+        .channel(`chat-room-${user.id}-${userId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages' },
+          (payload) => {
+            const newMsg = payload.new as Message;
+            if (
+              (newMsg.sender_id === user.id && newMsg.receiver_id === userId) ||
+              (newMsg.sender_id === userId && newMsg.receiver_id === user.id)
+            ) {
+              setMessages(prev => {
+                if (prev.some(m => m.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+              });
+              setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
+            }
+          }
+        )
+        .subscribe();
+
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: false }), 200);
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (e: any) {
+      console.error('Chat setup error:', e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    setupChat();
+  }, [setupChat]);
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || !currentUserId || !userId) return;
+    const msgText = inputText.trim();
+    setInputText('');
+
+    try {
+      const newMsg = {
+        sender_id: currentUserId,
+        receiver_id: userId as string,
+        content: msgText,
+      };
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(newMsg)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+        setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 50);
+
+        // Notify Receiver
+        await supabase.from('notifications').insert({
+          receiver_id: userId as string,
+          sender_id: currentUserId,
+          type: 'chat',
+          content: 'sent you a message'
+        });
+      }
+    } catch (e: any) {
+      Alert.alert('Send Error', e.message || 'Failed to send message.');
+    }
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -20,40 +141,57 @@ export default function ChatDetailScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerName}>SirG47</Text>
+          <Text style={styles.headerName}>{name || 'Chat'}</Text>
         </View>
         
-        {/* Right side payment $ action from screenshot */}
+        {/* Right side payment $ action */}
         <TouchableOpacity style={styles.payButton}>
           <Text style={styles.payButtonText}>$</Text>
         </TouchableOpacity>
       </View>
 
       {/* Messages */}
-      <ScrollView contentContainerStyle={styles.messagesContainer} showsVerticalScrollIndicator={false}>
-        {/* Date Divider */}
-        <View style={styles.dateDividerContainer}>
-          <View style={styles.dateDivider}>
-            <Text style={styles.dateText}>May 13, 2026</Text>
-          </View>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.primary} />
         </View>
+      ) : (
+        <ScrollView 
+          ref={scrollViewRef}
+          contentContainerStyle={styles.messagesContainer} 
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
+          {messages.length === 0 ? (
+            <Text style={styles.emptyText}>No messages yet. Send a message to start conversation!</Text>
+          ) : (
+            messages.map((msg, index) => {
+              const isMe = msg.sender_id === currentUserId;
+              const msgTime = new Date(msg.created_at).toLocaleTimeString(undefined, { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
 
-        {/* Left Message Bubble 1 */}
-        <Animated.View entering={FadeIn.delay(100)} style={styles.messageRowLeft}>
-          <View style={styles.bubbleLeft}>
-            <Text style={styles.messageText}>hello there</Text>
-            <Text style={styles.timestampText}>17:29</Text>
-          </View>
-        </Animated.View>
-
-        {/* Left Message Bubble 2 */}
-        <Animated.View entering={FadeIn.delay(200)} style={styles.messageRowLeft}>
-          <View style={styles.bubbleLeft}>
-            <Text style={styles.messageText}>Katy</Text>
-            <Text style={styles.timestampText}>17:30</Text>
-          </View>
-        </Animated.View>
-      </ScrollView>
+              return (
+                <Animated.View 
+                  key={msg.id || index}
+                  entering={FadeIn.delay(50)} 
+                  style={isMe ? styles.messageRowRight : styles.messageRowLeft}
+                >
+                  <View style={isMe ? styles.bubbleRight : styles.bubbleLeft}>
+                    <Text style={isMe ? styles.messageTextRight : styles.messageTextLeft}>
+                      {msg.content}
+                    </Text>
+                    <Text style={isMe ? styles.timestampTextRight : styles.timestampTextLeft}>
+                      {msgTime}
+                    </Text>
+                  </View>
+                </Animated.View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
 
       {/* Input Bar */}
       <View style={styles.inputBar}>
@@ -63,8 +201,12 @@ export default function ChatDetailScreen() {
           placeholderTextColor="#9CA3AF"
           value={inputText}
           onChangeText={setInputText}
+          onSubmitEditing={handleSendMessage}
         />
-        <TouchableOpacity style={styles.sendButton}>
+        <TouchableOpacity 
+          style={styles.sendButton}
+          onPress={handleSendMessage}
+        >
           <Ionicons name="send" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -76,6 +218,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontWeight: '500',
+    marginTop: 40,
+    paddingHorizontal: 30,
   },
   header: {
     flexDirection: 'row',
@@ -114,24 +268,14 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
   },
-  dateDividerContainer: {
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dateDivider: {
-    backgroundColor: '#EAEAF2',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  dateText: {
-    fontSize: 12,
-    color: '#4B5563',
-    fontWeight: '600',
-  },
   messageRowLeft: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
+    marginBottom: 12,
+  },
+  messageRowRight: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     marginBottom: 12,
   },
   bubbleLeft: {
@@ -143,16 +287,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     maxWidth: '80%',
-    position: 'relative',
   },
-  messageText: {
+  bubbleRight: {
+    backgroundColor: '#405B8F',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 4,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    maxWidth: '80%',
+  },
+  messageTextLeft: {
     fontSize: 15,
     color: '#1F2937',
     fontWeight: '500',
   },
-  timestampText: {
+  messageTextRight: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  timestampTextLeft: {
     fontSize: 10,
     color: '#9CA3AF',
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  timestampTextRight: {
+    fontSize: 10,
+    color: '#D1D5DB',
     alignSelf: 'flex-end',
     marginTop: 4,
     fontWeight: '600',
@@ -181,7 +346,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#405B8F', // matches blue send action circle precisely from screenshot
+    backgroundColor: '#405B8F',
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,5 +1,11 @@
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Theme } from '@/constants/Theme';
+import { useRouter } from 'expo-router';
+import { StyledInput } from '@/components/StyledInput';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { supabase } from '@/constants/Supabase';
-import { Alert, ActivityIndicator } from 'react-native';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -82,7 +88,7 @@ export default function LoginScreen() {
             >
               <View style={styles.signupRedirectContainer}>
                 <Text style={styles.signupRedirectText}>
-                  Don't have an account? <Text style={styles.signupRedirectTextBold}>Sign Up</Text>
+                  Don{"'"}t have an account? <Text style={styles.signupRedirectTextBold}>Sign Up</Text>
                 </Text>
                 <Ionicons name="chevron-forward" size={16} color={Theme.colors.text} style={styles.chevron} />
               </View>

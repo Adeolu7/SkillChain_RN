@@ -1,14 +1,67 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  TextInput, 
+  TouchableOpacity, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform, 
+  Alert, 
+  ActivityIndicator 
+} from 'react-native';
 import { Theme } from '@/constants/Theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { supabase } from '@/constants/Supabase';
 
 export default function PostJobScreen() {
   const router = useRouter();
-  const [operationMode, setOperationMode] = useState('REMOTE');
-  const [contractType, setContractType] = useState('FULL TIME');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [salary, setSalary] = useState('');
+  const [salaryScale, setSalaryScale] = useState('per month');
+  const [operationMode, setOperationMode] = useState<'REMOTE' | 'ONSITE' | 'HYBRID'>('REMOTE');
+  const [contractType, setContractType] = useState<'FULL TIME' | 'CONTRACT'>('FULL TIME');
+  const [applicationUrl, setApplicationUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handlePublishJob = async () => {
+    if (!title.trim() || !description.trim() || !applicationUrl.trim()) {
+      Alert.alert('Error', 'Job Title, Description, and Application URL are required fields.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('You must be logged in to post a job.');
+
+      const { error } = await supabase.from('jobs').insert({
+        user_id: user.id,
+        title: title.trim(),
+        description: description.trim(),
+        salary: salary ? parseFloat(salary) : null,
+        salary_scale: salaryScale.trim(),
+        currency: 'USD',
+        operation_mode: operationMode,
+        contract_type: contractType,
+        application_url: applicationUrl.trim(),
+      });
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Job listing posted successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to post job listing.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -28,17 +81,21 @@ export default function PostJobScreen() {
           {/* Job Title */}
           <TextInput 
             style={styles.input} 
-            placeholder="Job Title"
+            placeholder="Job Title *"
             placeholderTextColor="#9CA3AF"
+            value={title}
+            onChangeText={setTitle}
           />
 
           {/* Job Description */}
           <TextInput 
             style={[styles.input, styles.textArea]} 
-            placeholder="Job Description"
+            placeholder="Job Description *"
             placeholderTextColor="#9CA3AF"
             multiline
             numberOfLines={4}
+            value={description}
+            onChangeText={setDescription}
           />
 
           {/* Salary and Currency row */}
@@ -48,6 +105,8 @@ export default function PostJobScreen() {
               placeholder="Salary"
               placeholderTextColor="#9CA3AF"
               keyboardType="numeric"
+              value={salary}
+              onChangeText={setSalary}
             />
             <View style={styles.dropdown}>
               <Text style={styles.dropdownText}>USD</Text>
@@ -57,8 +116,10 @@ export default function PostJobScreen() {
           {/* Salary Scale */}
           <TextInput 
             style={styles.input} 
-            placeholder="Salary Scale: per month"
+            placeholder="Salary Scale (e.g. per month, per project)"
             placeholderTextColor="#9CA3AF"
+            value={salaryScale}
+            onChangeText={setSalaryScale}
           />
 
           {/* Operation Mode */}
@@ -71,7 +132,7 @@ export default function PostJobScreen() {
                   <TouchableOpacity
                     key={mode}
                     style={[styles.pill, isActive ? styles.pillActive : styles.pillInactive]}
-                    onPress={() => setOperationMode(mode)}
+                    onPress={() => setOperationMode(mode as any)}
                   >
                     <Text style={[styles.pillText, isActive ? styles.pillTextActive : styles.pillTextInactive]}>
                       {mode}
@@ -92,7 +153,7 @@ export default function PostJobScreen() {
                   <TouchableOpacity
                     key={type}
                     style={[styles.pill, isActive ? styles.pillActive : styles.pillInactive]}
-                    onPress={() => setContractType(type)}
+                    onPress={() => setContractType(type as any)}
                   >
                     <Text style={[styles.pillText, isActive ? styles.pillTextActive : styles.pillTextInactive]}>
                       {type}
@@ -106,15 +167,25 @@ export default function PostJobScreen() {
           {/* Application URL */}
           <TextInput 
             style={styles.input} 
-            placeholder="Application URL (External link)"
+            placeholder="Application URL (External link) *"
             placeholderTextColor="#9CA3AF"
             keyboardType="url"
             autoCapitalize="none"
+            value={applicationUrl}
+            onChangeText={setApplicationUrl}
           />
 
           {/* Submit Button */}
-          <TouchableOpacity style={styles.submitButton} onPress={() => router.back()}>
-            <Text style={styles.submitButtonText}>Publish Job</Text>
+          <TouchableOpacity 
+            style={styles.submitButton} 
+            onPress={handlePublishJob}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.submitButtonText}>Publish Job</Text>
+            )}
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>

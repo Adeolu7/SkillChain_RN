@@ -38,7 +38,7 @@ export default function RootLayout() {
     } else if (session && inAuthGroup) {
       router.replace("/(tabs)");
     }
-  }, [session, loading, segments]);
+  }, [session, loading, segments, router]);
 
   if (loading) {
     return (

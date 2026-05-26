@@ -1,5 +1,11 @@
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Theme } from '@/constants/Theme';
+import { useRouter } from 'expo-router';
+import { StyledInput } from '@/components/StyledInput';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { supabase } from '@/constants/Supabase';
-import { Alert, ActivityIndicator } from 'react-native';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -23,7 +29,7 @@ export default function SignupScreen() {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {

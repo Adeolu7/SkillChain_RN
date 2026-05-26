@@ -1,117 +1,436 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  ScrollView, 
+  TouchableOpacity, 
+  TextInput, 
+  Modal, 
+  Alert, 
+  ActivityIndicator 
+} from 'react-native';
 import { Theme } from '@/constants/Theme';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { supabase } from '@/constants/Supabase';
+
+interface WorkExperience {
+  role: string;
+  company: string;
+  dates: string;
+}
+
+interface Education {
+  institution: string;
+  degree: string;
+}
+
+interface Certification {
+  name: string;
+  issuer: string;
+}
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  bio: string | null;
+  hourly_rate: number | null;
+  skills: string[];
+  work_experience: WorkExperience[];
+  education: Education[];
+  certifications: Certification[];
+  solana_address: string | null;
+  avatar_url: string | null;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
-  // State to toggle between "My Profile" (Katy Pery) and "User Profile" (SirG47)
-  const [profileMode, setProfileMode] = useState<'MY_PROFILE' | 'SIR_G47'>('MY_PROFILE');
-  const skills = ['APPLICATION SECURITY', 'ENDPOINT SECURITY', 'NETWORK SECURITY'];
+  const params = useLocalSearchParams();
+  const targetUserId = params.userId as string | undefined;
+
+  // Profile data state
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
+
+  // Edit states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editRate, setEditRate] = useState('');
+  const [newSkill, setNewSkill] = useState('');
+
+  // Add detail modals
+  const [activeModal, setActiveModal] = useState<'work' | 'edu' | 'cert' | null>(null);
+  
+  // Work modal inputs
+  const [workRole, setWorkRole] = useState('');
+  const [workCompany, setWorkCompany] = useState('');
+  const [workDates, setWorkDates] = useState('');
+
+  // Education modal inputs
+  const [eduInstitution, setEduInstitution] = useState('');
+  const [eduDegree, setEduDegree] = useState('');
+
+  // Cert modal inputs
+  const [certName, setCertName] = useState('');
+  const [certIssuer, setCertIssuer] = useState('');
+
+  // Re-run loading on page focus or when userId parameter changes
+  const loadProfileData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setCurrentUserId(user.id);
+
+      const queryId = targetUserId || user.id;
+      const own = queryId === user.id;
+      setIsOwnProfile(own);
+
+      const { data, error } = await supabase
+        .from('profile')
+        .select('*')
+        .eq('id', queryId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedProfile: Profile = {
+          id: data.id,
+          full_name: data.full_name,
+          email: data.email,
+          bio: data.bio,
+          hourly_rate: data.hourly_rate ? parseFloat(data.hourly_rate) : null,
+          skills: data.skills || [],
+          work_experience: Array.isArray(data.work_experience) ? data.work_experience : [],
+          education: Array.isArray(data.education) ? data.education : [],
+          certifications: Array.isArray(data.certifications) ? data.certifications : [],
+          solana_address: data.solana_address,
+          avatar_url: data.avatar_url,
+        };
+
+        setProfile(formattedProfile);
+        setEditName(formattedProfile.full_name || '');
+        setEditBio(formattedProfile.bio || '');
+        setEditRate(formattedProfile.hourly_rate ? String(formattedProfile.hourly_rate) : '');
+      }
+    } catch (e: any) {
+      console.error('Error loading profile:', e.message);
+      Alert.alert('Profile Error', 'Failed to load profile details.');
+    } finally {
+      setLoading(false);
+    }
+  }, [targetUserId]);
+
+  useFocusEffect(loadProfileData);
+
+  const handleSaveBasicInfo = async () => {
+    if (!profile || !currentUserId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .update({
+          full_name: editName.trim(),
+          bio: editBio.trim(),
+          hourly_rate: editRate ? parseFloat(editRate) : null
+        })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? {
+        ...prev,
+        full_name: editName.trim(),
+        bio: editBio.trim(),
+        hourly_rate: editRate ? parseFloat(editRate) : null
+      } : null);
+
+      setIsEditing(false);
+      Alert.alert('Success', 'Basic profile info updated!');
+    } catch (e: any) {
+      Alert.alert('Save Error', e.message || 'Failed to update profile info.');
+    }
+  };
+
+  const handleAddSkill = async () => {
+    if (!newSkill.trim() || !profile || !currentUserId) return;
+    const updatedSkills = [...profile.skills, newSkill.trim().toUpperCase()];
+
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .update({ skills: updatedSkills })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, skills: updatedSkills } : null);
+      setNewSkill('');
+    } catch {
+      Alert.alert('Skill Error', 'Failed to add skill.');
+    }
+  };
+
+  const handleRemoveSkill = async (skillToRemove: string) => {
+    if (!profile || !currentUserId || !isOwnProfile) return;
+    const updatedSkills = profile.skills.filter(s => s !== skillToRemove);
+
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .update({ skills: updatedSkills })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, skills: updatedSkills } : null);
+    } catch {
+      Alert.alert('Skill Error', 'Failed to remove skill.');
+    }
+  };
+
+  const handleAddWorkExperience = async () => {
+    if (!workRole.trim() || !workCompany.trim() || !profile || !currentUserId) return;
+    const newWork: WorkExperience = {
+      role: workRole.trim(),
+      company: workCompany.trim(),
+      dates: workDates.trim() || 'Present'
+    };
+    const updatedWork = [...profile.work_experience, newWork];
+
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .update({ work_experience: updatedWork })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, work_experience: updatedWork } : null);
+      setActiveModal(null);
+      setWorkRole('');
+      setWorkCompany('');
+      setWorkDates('');
+    } catch {
+      Alert.alert('Experience Error', 'Failed to save experience.');
+    }
+  };
+
+  const handleAddEducation = async () => {
+    if (!eduInstitution.trim() || !eduDegree.trim() || !profile || !currentUserId) return;
+    const newEdu: Education = {
+      institution: eduInstitution.trim(),
+      degree: eduDegree.trim()
+    };
+    const updatedEdu = [...profile.education, newEdu];
+
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .update({ education: updatedEdu })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, education: updatedEdu } : null);
+      setActiveModal(null);
+      setEduInstitution('');
+      setEduDegree('');
+    } catch {
+      Alert.alert('Education Error', 'Failed to save education details.');
+    }
+  };
+
+  const handleAddCertification = async () => {
+    if (!certName.trim() || !certIssuer.trim() || !profile || !currentUserId) return;
+    const newCert: Certification = {
+      name: certName.trim(),
+      issuer: certIssuer.trim()
+    };
+    const updatedCerts = [...profile.certifications, newCert];
+
+    try {
+      const { error } = await supabase
+        .from('profile')
+        .update({ certifications: updatedCerts })
+        .eq('id', currentUserId);
+
+      if (error) throw error;
+
+      setProfile(prev => prev ? { ...prev, certifications: updatedCerts } : null);
+      setActiveModal(null);
+      setCertName('');
+      setCertIssuer('');
+    } catch {
+      Alert.alert('Certification Error', 'Failed to save certification details.');
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Log Out', 
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.auth.signOut();
+        } 
+      }
+    ]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.emptyCardText}>Profile not found.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Top Interactive Toggle Switch for the User to easily preview both mockups */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity 
-          style={[styles.toggleBtn, profileMode === 'MY_PROFILE' && styles.toggleBtnActive]}
-          onPress={() => setProfileMode('MY_PROFILE')}
-        >
-          <Text style={[styles.toggleBtnText, profileMode === 'MY_PROFILE' && styles.toggleBtnTextActive]}>
-            My Profile
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.toggleBtn, profileMode === 'SIR_G47' && styles.toggleBtnActive]}
-          onPress={() => setProfileMode('SIR_G47')}
-        >
-          <Text style={[styles.toggleBtnText, profileMode === 'SIR_G47' && styles.toggleBtnTextActive]}>
-            User Profile
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
         {/* Dynamic Header */}
-        {profileMode === 'MY_PROFILE' ? (
-          <View style={styles.header}>
-            <Text style={styles.title}>My Profile</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>{isOwnProfile ? 'My Profile' : 'User Profile'}</Text>
+          {isOwnProfile && (
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.headerActionBtn} onPress={() => router.replace('/(auth)/login')}>
-                <Ionicons name="log-out-outline" size={24} color="#111827" />
+              <TouchableOpacity style={styles.headerActionBtn} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={24} color="#EF4444" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.headerActionBtn}>
-                <Ionicons name="pencil-outline" size={22} color="#111827" />
+              <TouchableOpacity 
+                style={styles.headerActionBtn}
+                onPress={() => setIsEditing(!isEditing)}
+              >
+                <Ionicons name={isEditing ? "close-outline" : "pencil-outline"} size={24} color="#111827" />
               </TouchableOpacity>
             </View>
-          </View>
-        ) : (
-          <View style={styles.header}>
-            <Text style={styles.title}>User Profile</Text>
-          </View>
-        )}
+          )}
+        </View>
 
-        {/* Dynamic Profile Card */}
-        {profileMode === 'MY_PROFILE' ? (
-          <Animated.View key="my-profile-card" entering={FadeInUp.delay(100)} style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarTextBlue}>KP</Text>
-            </View>
-            <View style={styles.profileDetails}>
-              <Text style={styles.username}>Katy Pery</Text>
-              <Text style={styles.email}>terrygbadebo@gmail.com</Text>
-              <View style={styles.selectorDotContainer}>
-                <View style={styles.selectorDot} />
-              </View>
-            </View>
-          </Animated.View>
-        ) : (
-          <Animated.View key="user-profile-card" entering={FadeInUp.delay(100)} style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarTextBlue}>S</Text>
-            </View>
-            <View style={styles.profileDetails}>
-              <Text style={styles.username}>SirG47</Text>
-              <Text style={styles.email}>h4cker4u@proton.me</Text>
-              <View style={styles.selectorDotContainer}>
-                <View style={styles.selectorDot} />
-              </View>
-            </View>
-          </Animated.View>
-        )}
+        {/* Profile Card */}
+        <Animated.View entering={FadeInUp.delay(100)} style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarTextBlue}>
+              {(profile.full_name || 'U').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.profileDetails}>
+            {isEditing ? (
+              <TextInput
+                style={styles.nameInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Full Name"
+              />
+            ) : (
+              <Text style={styles.username}>{profile.full_name || 'Skillchain User'}</Text>
+            )}
+            <Text style={styles.email}>{profile.email}</Text>
+            {profile.solana_address ? (
+              <Text style={styles.walletAddr} numberOfLines={1}>
+                {profile.solana_address.substring(0, 6)}...{profile.solana_address.slice(-4)}
+              </Text>
+            ) : null}
+          </View>
+        </Animated.View>
 
         {/* Bio Section */}
         <Animated.View entering={FadeInUp.delay(150)} style={styles.section}>
           <Text style={styles.sectionTitle}>Bio</Text>
-          {profileMode === 'MY_PROFILE' ? (
-            <Text style={styles.bioTextMuted}>No bio provided.</Text>
+          {isEditing ? (
+            <TextInput
+              style={[styles.nameInput, styles.bioInput]}
+              value={editBio}
+              onChangeText={setEditBio}
+              placeholder="Tell others about yourself..."
+              multiline
+            />
+          ) : profile.bio ? (
+            <Text style={styles.bioText}>{profile.bio}</Text>
           ) : (
-            <Text style={styles.bioText}>
-              SkillChain combines the best of LinkedIn and Upwork — built mobile-native for Solana.
+            <Text style={styles.bioTextMuted}>No bio provided.</Text>
+          )}
+        </Animated.View>
+
+        {/* Hourly Rate */}
+        <Animated.View entering={FadeInUp.delay(200)} style={styles.section}>
+          <Text style={styles.rateLabel}>Hourly Rate</Text>
+          {isEditing ? (
+            <TextInput
+              style={styles.nameInput}
+              value={editRate}
+              onChangeText={setEditRate}
+              placeholder="Hourly rate (USD)"
+              keyboardType="numeric"
+            />
+          ) : (
+            <Text style={styles.rateValue}>
+              {profile.hourly_rate ? `$${profile.hourly_rate} / hr` : 'Negotiable'}
             </Text>
           )}
         </Animated.View>
 
-        {/* Hourly Rate (Only for SirG47 mockup) */}
-        {profileMode === 'SIR_G47' && (
-          <Animated.View entering={FadeInUp.delay(200)} style={styles.section}>
-            <Text style={styles.rateLabel}>Hourly Rate</Text>
-            <Text style={styles.rateValue}>$30.0 / hr</Text>
-          </Animated.View>
+        {/* Edit mode save action */}
+        {isEditing && (
+          <TouchableOpacity 
+            style={[styles.actionButton, { marginBottom: 20 }]}
+            onPress={handleSaveBasicInfo}
+          >
+            <Text style={styles.actionButtonText}>Save Basic Info</Text>
+          </TouchableOpacity>
         )}
 
         {/* Skills Section */}
         <Animated.View entering={FadeInUp.delay(250)} style={styles.section}>
           <Text style={styles.sectionTitle}>Skills</Text>
-          {profileMode === 'MY_PROFILE' ? (
+          
+          {isOwnProfile && (
+            <View style={styles.addSkillRow}>
+              <TextInput
+                style={styles.skillInput}
+                placeholder="Add skill (e.g. React Native)"
+                placeholderTextColor="#9CA3AF"
+                value={newSkill}
+                onChangeText={setNewSkill}
+              />
+              <TouchableOpacity style={styles.addSkillBtn} onPress={handleAddSkill}>
+                <Ionicons name="add" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {profile.skills.length === 0 ? (
             <Text style={styles.bioTextMuted}>No skills added yet.</Text>
           ) : (
             <View style={styles.skillsRow}>
-              {skills.map((skill) => (
-                <View key={skill} style={styles.skillPill}>
+              {profile.skills.map((skill, index) => (
+                <View key={index} style={styles.skillPill}>
                   <Text style={styles.skillText}>{skill}</Text>
+                  {isOwnProfile && (
+                    <TouchableOpacity 
+                      onPress={() => handleRemoveSkill(skill)}
+                      style={styles.removeSkillBtn}
+                    >
+                      <Ionicons name="close-circle" size={14} color="#6B7280" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </View>
@@ -122,23 +441,25 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInUp.delay(300)} style={styles.section}>
           <View style={styles.sectionHeaderWithAdd}>
             <Text style={styles.sectionTitle}>Work Experience</Text>
-            {profileMode === 'MY_PROFILE' && (
-              <TouchableOpacity style={styles.addBtn}>
+            {isOwnProfile && (
+              <TouchableOpacity style={styles.addBtn} onPress={() => setActiveModal('work')}>
                 <Ionicons name="add" size={20} color="#1E3A8A" />
               </TouchableOpacity>
             )}
           </View>
           
-          {profileMode === 'MY_PROFILE' ? (
+          {profile.work_experience.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No details added yet.</Text>
             </View>
           ) : (
-            <View style={styles.experienceCard}>
-              <Text style={styles.experienceRole}>Forensic Expert</Text>
-              <Text style={styles.experienceCompany}>Interpool</Text>
-              <Text style={styles.experienceDates}>Jan 2021 - Present</Text>
-            </View>
+            profile.work_experience.map((work, idx) => (
+              <View key={idx} style={[styles.experienceCard, { marginBottom: 8 }]}>
+                <Text style={styles.experienceRole}>{work.role}</Text>
+                <Text style={styles.experienceCompany}>{work.company}</Text>
+                <Text style={styles.experienceDates}>{work.dates}</Text>
+              </View>
+            ))
           )}
         </Animated.View>
 
@@ -146,22 +467,24 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInUp.delay(350)} style={styles.section}>
           <View style={styles.sectionHeaderWithAdd}>
             <Text style={styles.sectionTitle}>Education</Text>
-            {profileMode === 'MY_PROFILE' && (
-              <TouchableOpacity style={styles.addBtn}>
+            {isOwnProfile && (
+              <TouchableOpacity style={styles.addBtn} onPress={() => setActiveModal('edu')}>
                 <Ionicons name="add" size={20} color="#1E3A8A" />
               </TouchableOpacity>
             )}
           </View>
 
-          {profileMode === 'MY_PROFILE' ? (
+          {profile.education.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No details added yet.</Text>
             </View>
           ) : (
-            <View style={styles.experienceCard}>
-              <Text style={styles.experienceRole}>Harvard</Text>
-              <Text style={styles.experienceCompany}>Msc Computer Science</Text>
-            </View>
+            profile.education.map((edu, idx) => (
+              <View key={idx} style={[styles.experienceCard, { marginBottom: 8 }]}>
+                <Text style={styles.experienceRole}>{edu.institution}</Text>
+                <Text style={styles.experienceCompany}>{edu.degree}</Text>
+              </View>
+            ))
           )}
         </Animated.View>
 
@@ -169,46 +492,166 @@ export default function ProfileScreen() {
         <Animated.View entering={FadeInUp.delay(400)} style={styles.section}>
           <View style={styles.sectionHeaderWithAdd}>
             <Text style={styles.sectionTitle}>Certifications</Text>
-            {profileMode === 'MY_PROFILE' && (
-              <TouchableOpacity style={styles.addBtn}>
+            {isOwnProfile && (
+              <TouchableOpacity style={styles.addBtn} onPress={() => setActiveModal('cert')}>
                 <Ionicons name="add" size={20} color="#1E3A8A" />
               </TouchableOpacity>
             )}
           </View>
 
-          {profileMode === 'MY_PROFILE' ? (
+          {profile.certifications.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyCardText}>No details added yet.</Text>
             </View>
           ) : (
-            <View style={styles.experienceCard}>
-              <Text style={styles.experienceRole}>OSCP</Text>
-              <Text style={styles.experienceCompany}>OffSec</Text>
-            </View>
+            profile.certifications.map((cert, idx) => (
+              <View key={idx} style={[styles.experienceCard, { marginBottom: 8 }]}>
+                <Text style={styles.experienceRole}>{cert.name}</Text>
+                <Text style={styles.experienceCompany}>{cert.issuer}</Text>
+              </View>
+            ))
           )}
         </Animated.View>
 
         {/* Bottom Button Action */}
-        {profileMode === 'MY_PROFILE' ? (
+        {!isOwnProfile && (
           <Animated.View entering={FadeInUp.delay(450)} style={styles.buttonContainer}>
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => router.push('/wallet-settings')}
+              onPress={() => router.push({
+                pathname: '/chat-detail',
+                params: { userId: profile.id, name: profile.full_name }
+              })}
             >
-              <Text style={styles.actionButtonText}>Wallet Settings</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeInUp.delay(450)} style={styles.buttonContainer}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => router.push('/chat-detail')}
-            >
-              <Text style={styles.actionButtonText}>Message SirG47</Text>
+              <Text style={styles.actionButtonText}>Message {profile.full_name || 'User'}</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* WORK EXPERIENCE MODAL */}
+      <Modal visible={activeModal === 'work'} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalHeading}>Add Work Experience</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Role / Position"
+              placeholderTextColor="#9CA3AF"
+              value={workRole}
+              onChangeText={setWorkRole}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Company"
+              placeholderTextColor="#9CA3AF"
+              value={workCompany}
+              onChangeText={setWorkCompany}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Dates (e.g. Jan 2021 - Present)"
+              placeholderTextColor="#9CA3AF"
+              value={workDates}
+              onChangeText={setWorkDates}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn}
+                onPress={() => setActiveModal(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalSaveBtn}
+                onPress={handleAddWorkExperience}
+              >
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* EDUCATION MODAL */}
+      <Modal visible={activeModal === 'edu'} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalHeading}>Add Education</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Institution"
+              placeholderTextColor="#9CA3AF"
+              value={eduInstitution}
+              onChangeText={setEduInstitution}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Degree / Course of Study"
+              placeholderTextColor="#9CA3AF"
+              value={eduDegree}
+              onChangeText={setEduDegree}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn}
+                onPress={() => setActiveModal(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalSaveBtn}
+                onPress={handleAddEducation}
+              >
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* CERTIFICATIONS MODAL */}
+      <Modal visible={activeModal === 'cert'} animationType="fade" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalHeading}>Add Certification</Text>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Certification Name"
+              placeholderTextColor="#9CA3AF"
+              value={certName}
+              onChangeText={setCertName}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Issuing Authority"
+              placeholderTextColor="#9CA3AF"
+              value={certIssuer}
+              onChangeText={setCertIssuer}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn}
+                onPress={() => setActiveModal(null)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalSaveBtn}
+                onPress={handleAddCertification}
+              >
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -218,39 +661,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Theme.colors.background,
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 24,
-    marginTop: 64,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 4,
-  },
-  toggleBtn: {
+  loadingContainer: {
     flex: 1,
-    paddingVertical: 10,
+    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-  },
-  toggleBtnActive: {
-    backgroundColor: '#FFFFFF',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  toggleBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#4B5563',
-  },
-  toggleBtnTextActive: {
-    color: '#111827',
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 64,
     paddingBottom: 120,
   },
   header: {
@@ -274,7 +692,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   profileCard: {
-    backgroundColor: '#E5E7EB', // matching screenshots' lavender gray card
+    backgroundColor: '#E5E7EB',
     borderRadius: 20,
     padding: 24,
     flexDirection: 'row',
@@ -299,26 +717,35 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   username: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: '#111827',
   },
-  email: {
+  nameInput: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    borderBottomWidth: 1,
+    borderBottomColor: '#9CA3AF',
+    paddingVertical: 4,
+  },
+  bioInput: {
     fontSize: 15,
+    fontWeight: '500',
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  email: {
+    fontSize: 14,
     color: '#4B5563',
-    marginTop: 4,
+    marginTop: 2,
     fontWeight: '500',
   },
-  selectorDotContainer: {
-    marginTop: 10,
-    alignItems: 'flex-start',
-  },
-  selectorDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#9CA3AF',
-    opacity: 0.4,
+  walletAddr: {
+    fontSize: 12,
+    color: '#3B82F6',
+    marginTop: 4,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
@@ -333,7 +760,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#DCE4F9', // light blue plus badge from mockup
+    backgroundColor: '#DCE4F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -341,6 +768,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#111827',
+    marginBottom: 10,
   },
   bioText: {
     fontSize: 15,
@@ -356,7 +784,7 @@ const styles = StyleSheet.create({
   rateLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E3A8A', // Muted deep blue label from screenshot
+    color: '#1E3A8A',
     marginBottom: 6,
   },
   rateValue: {
@@ -364,24 +792,55 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
   },
+  addSkillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  skillInput: {
+    flex: 1,
+    backgroundColor: '#EAEAF2',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  addSkillBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#405B8F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   skillsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   skillPill: {
-    backgroundColor: '#E5E7EB', // light lavender-gray skill tag pill
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: '#E5E7EB',
+    paddingLeft: 14,
+    paddingRight: 10,
+    paddingVertical: 8,
     borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   skillText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#374151',
   },
+  removeSkillBtn: {
+    padding: 2,
+  },
   experienceCard: {
-    backgroundColor: '#E5E7EB', // matching screenshots' lavender gray card
+    backgroundColor: '#E5E7EB',
     borderRadius: 16,
     padding: 18,
   },
@@ -418,7 +877,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   actionButton: {
-    backgroundColor: '#405B8F', // Steel blue color matching mockup bottom button precisely
+    backgroundColor: '#405B8F',
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
@@ -428,5 +887,61 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    gap: 12,
+  },
+  modalHeading: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: '#EAEAF2',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  modalCancelText: {
+    color: '#6B7280',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  modalSaveBtn: {
+    backgroundColor: '#405B8F',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+  },
+  modalSaveText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });
