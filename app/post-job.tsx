@@ -22,11 +22,14 @@ export default function PostJobScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [salary, setSalary] = useState('');
+  const [currency, setCurrency] = useState('USD');
   const [salaryScale, setSalaryScale] = useState('per month');
   const [operationMode, setOperationMode] = useState<'REMOTE' | 'ONSITE' | 'HYBRID'>('REMOTE');
   const [contractType, setContractType] = useState<'FULL TIME' | 'CONTRACT'>('FULL TIME');
   const [applicationUrl, setApplicationUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+  const [showSalaryScaleDropdown, setShowSalaryScaleDropdown] = useState(false);
 
   const handlePublishJob = async () => {
     if (!title.trim() || !description.trim() || !applicationUrl.trim()) {
@@ -45,7 +48,7 @@ export default function PostJobScreen() {
         description: description.trim(),
         salary: salary ? parseFloat(salary) : null,
         salary_scale: salaryScale.trim(),
-        currency: 'USD',
+        currency: currency.trim(),
         operation_mode: operationMode,
         contract_type: contractType,
         application_url: applicationUrl.trim(),
@@ -99,7 +102,7 @@ export default function PostJobScreen() {
           />
 
           {/* Salary and Currency row */}
-          <View style={styles.row}>
+          <View style={[styles.row, { zIndex: 3000 }]}>
             <TextInput 
               style={[styles.input, styles.halfInput]} 
               placeholder="Salary"
@@ -108,19 +111,79 @@ export default function PostJobScreen() {
               value={salary}
               onChangeText={setSalary}
             />
-            <View style={styles.dropdown}>
-              <Text style={styles.dropdownText}>USD</Text>
+            <View style={{ position: 'relative', zIndex: 3000 }}>
+              <TouchableOpacity 
+                style={styles.dropdown} 
+                onPress={() => {
+                  setShowCurrencyDropdown(!showCurrencyDropdown);
+                  setShowSalaryScaleDropdown(false);
+                }}
+              >
+                <Text style={styles.dropdownText}>{currency}</Text>
+                <Ionicons name={showCurrencyDropdown ? "chevron-up" : "chevron-down"} size={16} color="#4B5563" />
+              </TouchableOpacity>
+              
+              {showCurrencyDropdown && (
+                <View style={styles.dropdownMenu}>
+                  {['USD', 'EUR', 'GBP', 'NGN', 'CYN', 'CAD'].map((item) => (
+                    <TouchableOpacity 
+                      key={item} 
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setCurrency(item);
+                        setShowCurrencyDropdown(false);
+                      }}
+                    >
+                      <Text style={[
+                        styles.dropdownItemText,
+                        currency === item && styles.dropdownItemTextActive
+                      ]}>
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
 
           {/* Salary Scale */}
-          <TextInput 
-            style={styles.input} 
-            placeholder="Salary Scale (e.g. per month, per project)"
-            placeholderTextColor="#9CA3AF"
-            value={salaryScale}
-            onChangeText={setSalaryScale}
-          />
+          <View style={{ zIndex: 2000, position: 'relative' }}>
+            <TouchableOpacity 
+              style={styles.salaryScaleDropdown}
+              onPress={() => {
+                setShowSalaryScaleDropdown(!showSalaryScaleDropdown);
+                setShowCurrencyDropdown(false);
+              }}
+            >
+              <Text style={styles.salaryScaleDropdownText}>
+                {salaryScale || 'Select Salary Scale'}
+              </Text>
+              <Ionicons name={showSalaryScaleDropdown ? "chevron-up" : "chevron-down"} size={18} color="#4B5563" />
+            </TouchableOpacity>
+
+            {showSalaryScaleDropdown && (
+              <View style={styles.salaryScaleMenu}>
+                {['per month', 'per project', 'per week'].map((item) => (
+                  <TouchableOpacity 
+                    key={item} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSalaryScale(item);
+                      setShowSalaryScaleDropdown(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownItemText,
+                      salaryScale === item && styles.dropdownItemTextActive
+                    ]}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           {/* Operation Mode */}
           <View style={styles.section}>
@@ -251,13 +314,81 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#9CA3AF',
     borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   dropdownText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+  },
+  salaryScaleDropdown: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#9CA3AF',
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  salaryScaleDropdownText: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    width: 120,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+    zIndex: 9999,
+  },
+  salaryScaleMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  dropdownItemTextActive: {
+    color: '#6366F1', // Primary indigo accent
+    fontWeight: '700',
   },
   section: {
     marginTop: 8,

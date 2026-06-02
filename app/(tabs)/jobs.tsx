@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { supabase } from '@/constants/Supabase';
+import { Cache } from '@/constants/Cache';
 
 interface Job {
   id: string;
@@ -48,21 +49,31 @@ export default function JobsScreen() {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select(`
-          *,
-          profile:profile!jobs_user_id_fkey(
-            full_name
-          )
-        `)
-        .order('created_at', { ascending: false });
+      await Cache.fetchWithSWR(
+        'available_jobs',
+        async () => {
+          const { data, error } = await supabase
+            .from('jobs')
+            .select(`
+              *,
+              profile:profile!jobs_user_id_fkey(
+                full_name
+              )
+            `)
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setJobs((data || []) as any);
+          if (error) throw error;
+          return data || [];
+        },
+        (data) => {
+          setJobs(data as any);
+        },
+        () => {
+          setLoading(false);
+        }
+      );
     } catch (e: any) {
       console.error('Error fetching jobs:', e.message);
-    } finally {
       setLoading(false);
     }
   };

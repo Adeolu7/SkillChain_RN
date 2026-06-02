@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { supabase } from '@/constants/Supabase';
+import { Cache } from '@/constants/Cache';
 
 interface WorkExperience {
   role: string;
@@ -92,38 +93,47 @@ export default function ProfileScreen() {
       const own = queryId === user.id;
       setIsOwnProfile(own);
 
-      const { data, error } = await supabase
-        .from('profile')
-        .select('*')
-        .eq('id', queryId)
-        .single();
+      await Cache.fetchWithSWR(
+        `profile_${queryId}`,
+        async () => {
+          const { data, error } = await supabase
+            .from('profile')
+            .select('*')
+            .eq('id', queryId)
+            .single();
 
-      if (error) throw error;
+          if (error) throw error;
+          return data;
+        },
+        (data) => {
+          if (data) {
+            const formattedProfile: Profile = {
+              id: data.id,
+              full_name: data.full_name,
+              email: data.email,
+              bio: data.bio,
+              hourly_rate: data.hourly_rate ? parseFloat(data.hourly_rate) : null,
+              skills: data.skills || [],
+              work_experience: Array.isArray(data.work_experience) ? data.work_experience : [],
+              education: Array.isArray(data.education) ? data.education : [],
+              certifications: Array.isArray(data.certifications) ? data.certifications : [],
+              solana_address: data.solana_address,
+              avatar_url: data.avatar_url,
+            };
 
-      if (data) {
-        const formattedProfile: Profile = {
-          id: data.id,
-          full_name: data.full_name,
-          email: data.email,
-          bio: data.bio,
-          hourly_rate: data.hourly_rate ? parseFloat(data.hourly_rate) : null,
-          skills: data.skills || [],
-          work_experience: Array.isArray(data.work_experience) ? data.work_experience : [],
-          education: Array.isArray(data.education) ? data.education : [],
-          certifications: Array.isArray(data.certifications) ? data.certifications : [],
-          solana_address: data.solana_address,
-          avatar_url: data.avatar_url,
-        };
-
-        setProfile(formattedProfile);
-        setEditName(formattedProfile.full_name || '');
-        setEditBio(formattedProfile.bio || '');
-        setEditRate(formattedProfile.hourly_rate ? String(formattedProfile.hourly_rate) : '');
-      }
+            setProfile(formattedProfile);
+            setEditName(formattedProfile.full_name || '');
+            setEditBio(formattedProfile.bio || '');
+            setEditRate(formattedProfile.hourly_rate ? String(formattedProfile.hourly_rate) : '');
+          }
+        },
+        () => {
+          setLoading(false);
+        }
+      );
     } catch (e: any) {
       console.error('Error loading profile:', e.message);
       Alert.alert('Profile Error', 'Failed to load profile details.');
-    } finally {
       setLoading(false);
     }
   }, [targetUserId]);

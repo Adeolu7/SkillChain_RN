@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { supabase } from '@/constants/Supabase';
 import * as ImagePicker from 'expo-image-picker';
+import { Cache } from '@/constants/Cache';
 
 interface Post {
   id: string;
@@ -80,8 +81,6 @@ export default function HomeFeedScreen() {
       await refreshFeed();
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to load feed data.');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -91,55 +90,71 @@ export default function HomeFeedScreen() {
 
   const refreshFeed = async () => {
     try {
-      // 1. Fetch Posts
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select(`
-          id,
-          content,
-          image_url,
-          created_at,
-          user_id,
-          profile:profile!posts_user_id_fkey(
-            full_name,
-            avatar_url,
-            solana_address
-          )
-        `)
-        .order('created_at', { ascending: false });
+      await Cache.fetchWithSWR(
+        'home_feed_data',
+        async () => {
+          // 1. Fetch Posts
+          const { data: postsData, error: postsError } = await supabase
+            .from('posts')
+            .select(`
+              id,
+              content,
+              image_url,
+              created_at,
+              user_id,
+              profile:profile!posts_user_id_fkey(
+                full_name,
+                avatar_url,
+                solana_address
+              )
+            `)
+            .order('created_at', { ascending: false });
 
-      if (postsError) throw postsError;
-      setPosts((postsData || []) as any);
+          if (postsError) throw postsError;
 
-      // 2. Fetch Likes
-      const { data: likesData, error: likesError } = await supabase
-        .from('likes')
-        .select('id, user_id, post_id');
+          // 2. Fetch Likes
+          const { data: likesData, error: likesError } = await supabase
+            .from('likes')
+            .select('id, user_id, post_id');
 
-      if (likesError) throw likesError;
-      setLikes(likesData || []);
+          if (likesError) throw likesError;
 
-      // 3. Fetch Comments
-      const { data: commentsData, error: commentsError } = await supabase
-        .from('comments')
-        .select(`
-          id,
-          user_id,
-          post_id,
-          content,
-          created_at,
-          profile:profile!comments_user_id_fkey(
-            full_name,
-            avatar_url
-          )
-        `)
-        .order('created_at', { ascending: true });
+          // 3. Fetch Comments
+          const { data: commentsData, error: commentsError } = await supabase
+            .from('comments')
+            .select(`
+              id,
+              user_id,
+              post_id,
+              content,
+              created_at,
+              profile:profile!comments_user_id_fkey(
+                full_name,
+                avatar_url
+              )
+            `)
+            .order('created_at', { ascending: true });
 
-      if (commentsError) throw commentsError;
-      setComments((commentsData || []) as any);
+          if (commentsError) throw commentsError;
 
+          return {
+            posts: postsData || [],
+            likes: likesData || [],
+            comments: commentsData || []
+          };
+        },
+        (data) => {
+          setPosts(data.posts as any);
+          setLikes(data.likes || []);
+          setComments(data.comments as any);
+        },
+        () => {
+          setLoading(false);
+        }
+      );
     } catch (e: any) {
       console.error('Error refreshing feed:', e);
+      setLoading(false);
     }
   };
 

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { supabase } from '@/constants/Supabase';
 import { useRouter } from 'expo-router';
+import { Cache } from '@/constants/Cache';
 
 interface Profile {
   id: string;
@@ -32,16 +33,26 @@ export default function DiscoverScreen() {
   const fetchProfiles = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profile')
-        .select('*')
-        .order('created_at', { ascending: false });
+      await Cache.fetchWithSWR(
+        'discover_profiles',
+        async () => {
+          const { data, error } = await supabase
+            .from('profile')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setProfiles(data || []);
+          if (error) throw error;
+          return data || [];
+        },
+        (data) => {
+          setProfiles(data);
+        },
+        () => {
+          setLoading(false);
+        }
+      );
     } catch (e: any) {
       console.error('Error fetching discover profiles:', e.message);
-    } finally {
       setLoading(false);
     }
   };
