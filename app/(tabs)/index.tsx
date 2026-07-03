@@ -19,7 +19,8 @@ import {
     TouchableOpacity,
     View,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    Dimensions
 } from 'react-native';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { Buffer } from 'buffer';
@@ -54,6 +55,72 @@ interface Comment {
     avatar_url: string;
   } | null;
 }
+
+// Helper component to render images with their dynamic native aspect ratio
+const PostImage = ({ uri }: { uri: string }) => {
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(
+    Dimensions.get('window').width - 72 // Initial estimate: Screen width minus card/scroll margins
+  );
+
+  useEffect(() => {
+    if (!uri) return;
+    Image.getSize(
+      uri,
+      (width, height) => {
+        if (width && height) {
+          setAspectRatio(width / height);
+        }
+      },
+      (error) => {
+        console.warn('Failed to get image size:', error);
+      }
+    );
+  }, [uri]);
+
+  const handleLayout = (event: any) => {
+    const { width } = event.nativeEvent.layout;
+    if (width > 0 && width !== containerWidth) {
+      setContainerWidth(width);
+    }
+  };
+
+  if (!aspectRatio) {
+    return (
+      <View style={[styles.postImage, { height: 200, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="small" color="#4B5563" />
+      </View>
+    );
+  }
+
+  // Calculate height dynamically. If it exceeds 400, cap it.
+  const calculatedHeight = containerWidth > 0 ? containerWidth / aspectRatio : 250;
+  const finalHeight = Math.min(calculatedHeight, 400);
+
+  return (
+    <View 
+      onLayout={handleLayout} 
+      style={[
+        styles.postImage, 
+        { 
+          height: finalHeight, 
+          width: '100%', 
+          overflow: 'hidden',
+          backgroundColor: '#F3F4F6'
+        }
+      ]}
+    >
+      <Image 
+        source={{ uri }} 
+        style={{ 
+          width: '100%', 
+          height: '100%' 
+        }} 
+        resizeMode="cover" 
+      />
+    </View>
+  );
+};
 
 export default function HomeFeedScreen() {
   const router = useRouter();
@@ -491,11 +558,7 @@ export default function HomeFeedScreen() {
 
                   {/* Optional Image */}
                   {post.image_url && (
-                    <Image 
-                      source={{ uri: post.image_url }} 
-                      style={styles.postImage} 
-                      resizeMode="cover"
-                    />
+                    <PostImage uri={post.image_url} />
                   )}
 
                   {/* Divider line before actions */}
@@ -586,7 +649,7 @@ export default function HomeFeedScreen() {
         <View style={styles.modalOverlay}>
           <Animated.View entering={FadeInUp} style={styles.modalContent}>
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
               style={{ flex: 1 }}
             >
               {/* Header */}
@@ -656,7 +719,7 @@ export default function HomeFeedScreen() {
       >
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
             style={[styles.modalContent, { height: '80%' }]}
           >
             <View style={styles.modalHeader}>
