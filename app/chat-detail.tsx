@@ -516,7 +516,7 @@ export default function ChatDetailScreen() {
           placeholderTextColor="#9CA3AF"
           value={inputText}
           onChangeText={setInputText}
-          onSubmitEditing={() => handleSendMessage()}
+          multiline={true}
         />
         <TouchableOpacity 
           style={styles.sendButton}
@@ -791,6 +791,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
     fontWeight: '500',
+    maxHeight: 100,
   },
   sendButton: {
     width: 44,
