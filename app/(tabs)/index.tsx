@@ -59,9 +59,6 @@ interface Comment {
 // Helper component to render images with their dynamic native aspect ratio
 const PostImage = ({ uri }: { uri: string }) => {
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(
-    Dimensions.get('window').width - 72 // Initial estimate: Screen width minus card/scroll margins
-  );
 
   useEffect(() => {
     if (!uri) return;
@@ -78,13 +75,6 @@ const PostImage = ({ uri }: { uri: string }) => {
     );
   }, [uri]);
 
-  const handleLayout = (event: any) => {
-    const { width } = event.nativeEvent.layout;
-    if (width > 0 && width !== containerWidth) {
-      setContainerWidth(width);
-    }
-  };
-
   if (!aspectRatio) {
     return (
       <View style={[styles.postImage, { height: 200, justifyContent: 'center', alignItems: 'center' }]}>
@@ -93,32 +83,18 @@ const PostImage = ({ uri }: { uri: string }) => {
     );
   }
 
-  // Calculate height dynamically. If it exceeds 400, cap it.
-  const calculatedHeight = containerWidth > 0 ? containerWidth / aspectRatio : 250;
-  const finalHeight = Math.min(calculatedHeight, 400);
-
   return (
-    <View 
-      onLayout={handleLayout} 
+    <Image 
+      source={{ uri }} 
       style={[
         styles.postImage, 
         { 
-          height: finalHeight, 
-          width: '100%', 
-          overflow: 'hidden',
-          backgroundColor: '#F3F4F6'
+          aspectRatio: aspectRatio, 
+          height: undefined,
         }
-      ]}
-    >
-      <Image 
-        source={{ uri }} 
-        style={{ 
-          width: '100%', 
-          height: '100%' 
-        }} 
-        resizeMode="cover" 
-      />
-    </View>
+      ]} 
+      resizeMode="cover" 
+    />
   );
 };
 
