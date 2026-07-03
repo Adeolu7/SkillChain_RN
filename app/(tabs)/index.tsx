@@ -494,7 +494,7 @@ export default function HomeFeedScreen() {
                     <Image 
                       source={{ uri: post.image_url }} 
                       style={styles.postImage} 
-                      resizeMode="contain"
+                      resizeMode="cover"
                     />
                   )}
 
@@ -621,7 +621,7 @@ export default function HomeFeedScreen() {
 
                 {createImageUri && (
                   <View style={styles.imagePreviewContainer}>
-                    <Image source={{ uri: createImageUri }} style={styles.imagePreview} resizeMode="contain" />
+                    <Image source={{ uri: createImageUri }} style={styles.imagePreview} resizeMode="cover" />
                     <TouchableOpacity 
                       style={styles.removeImageBtn}
                       onPress={() => setCreateImageUri(null)}
@@ -791,6 +791,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     zIndex: 1,
+    overflow: 'hidden',
   },
   postHeader: {
     flexDirection: 'row',
@@ -832,9 +833,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   postImage: {
-    width: '100%',
+    width: 'auto',
+    marginHorizontal: -20,
     height: 250,
-    borderRadius: 12,
     marginBottom: 16,
     backgroundColor: '#F3F4F6',
   },

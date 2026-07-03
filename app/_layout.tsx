@@ -143,8 +143,8 @@ function AuthStateListener() {
 }
 
 export default function RootLayout() {
-  const appId = process.env.EXPO_PUBLIC_PRIVY_APP_ID || process.env.APP_ID || "";
-  const clientId = process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID || process.env.CLIENT_ID || "";
+  const appId = process.env.EXPO_PUBLIC_PRIVY_APP_ID || process.env.APP_ID || "cmq2sufsw003m0cjxuhitaxit";
+  const clientId = process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID || process.env.CLIENT_ID || "client-WY6aF74za3gZXo7hWDUnwEyy13oUfR9mkFPqFpY9mDRE8";
   const isWeb = Platform.OS === 'web';
 
   if (!appId || !clientId) {
